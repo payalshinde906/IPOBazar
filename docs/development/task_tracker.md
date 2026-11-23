@@ -18,16 +18,17 @@ Legend: ✅ done · 🔄 in progress · ⏳ pending · 🚫 blocked
 | P2-02 | Write design system (`docs/product/design_system.md`) | ✅ |
 | P2-03 | Screen inventory + data-provenance badges | ✅ |
 
-## Phase 3 — Project setup
+## Phase 3 — Project setup  ✅ complete
 | ID | Task | Status |
 |----|------|--------|
 | P3-01 | `git init`, `.gitignore`, `README.md` | ✅ |
 | P3-02 | Backend skeleton + FastAPI + `/health` | ✅ |
 | P3-03 | PostgreSQL connection verified | ✅ |
-| P3-04 | Alembic initialised | ⏳ |
-| P3-05 | Frontend Expo app + theme + home screen | 🔄 |
-| P3-06 | Client → server health handshake verified | ⏳ |
-| P3-07 | Core documentation set | 🔄 |
+| P3-04 | Alembic initialised | ✅ |
+| P3-05 | Frontend Expo app + theme + home screen | ✅ |
+| P3-06 | Client → server health handshake verified | ✅ |
+| P3-07 | Core documentation set | ✅ |
+| P3-08 | Remote `origin` configured + initial push (`main`) | ✅ |
 
 ## Phase 4 — Frontend foundation (next)
 | ID | Task | Status |

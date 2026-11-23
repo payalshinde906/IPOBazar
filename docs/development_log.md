@@ -91,4 +91,94 @@ python -m venv .venv
 **Issue:** the first install attempt failed with `ReadTimeoutError` from
 `files.pythonhosted.org` (slow network). Retried with longer timeout/retries.
 
-**Result:** _to be filled after verification._
+**Result:** ✅ Dependencies installed into `server/.venv`. Uvicorn serves the app on `:8000`
+and every endpoint returns the expected JSON:
+
+| Endpoint | Response |
+|----------|----------|
+| `GET /health` | `{"status":"ok","service":"ipobazar-api"}` |
+| `GET /api/v1/health` | `{"status":"ok","service":"ipobazar-api"}` |
+| `GET /api/v1/health/db` | `{"status":"ok","database":"connected"}` |
+
+Test command
+```powershell
+.\.venv\Scripts\python.exe -m pytest -q
+```
+**Result:** **3 passed** ✅
+
+**Issue (important):** the first test run failed with `ModuleNotFoundError: No module named
+'aiosqlite'`. Cause: an **ambient** `DATABASE_URL` env var on this machine overrode
+`server/.env` and pointed the app at SQLite. Fixed by namespacing every backend setting with
+the `IPOBAZAR_` prefix (`env_prefix="IPOBAZAR_"`) and renaming the `.env` keys — recorded as
+**ADR-0010**.
+
+### 3.5 Alembic initialisation
+
+**Command**
+```powershell
+.\.venv\Scripts\alembic.exe init alembic
+```
+**Files modified**
+- `alembic/env.py` — imports `get_settings` and `Base`, sets
+  `sqlalchemy.url` from settings, and `target_metadata = Base.metadata`.
+
+**Result:** ✅ Alembic connects to `IPOBazar` using the app settings. No revisions yet — the
+first migration arrives in Phase 5 alongside the models.
+
+### 3.6 Frontend foundation (`client/`)
+
+**Files created / modified**
+- `package.json` — renamed to `ipobazar-client`, entry `expo-router/entry`, Expo SDK 58 deps.
+- `app.json` — name/slug/scheme `IPOBazar`/`ipobazar`, plugins `expo-router` +
+  `expo-status-bar`, `experiments.typedRoutes`.
+- `tsconfig.json` — path alias `@/*` → `./src/*`.
+- `src/constants/theme.ts` — semantic light/dark color tokens, spacing/radius/typography.
+- `src/services/api.ts` — `API_BASE_URL` + typed `fetchHealth()`.
+- `src/app/_layout.tsx` — root layout (`SafeAreaProvider` + `Stack`).
+- `src/app/index.tsx` — home screen that shows connection state (idle/loading/connected/
+  error) and a SAMPLE DATA banner.
+- Removed the template `App.tsx`/`index.ts` (superseded by Expo Router).
+- `.env` / `.env.example` — `EXPO_PUBLIC_API_BASE_URL`.
+
+**Commands / result**
+```powershell
+npx tsc --noEmit            # → clean (exit 0)
+npx expo lint               # → clean (0 problems) after fixing 1 error
+npx expo start --port 8081  # Metro dev server
+```
+- Metro bundle `.expo/.virtual-metro-entry.bundle` → **HTTP 200, ~5.72 MB** ✅
+- `eslint.config.js` created by `expo lint` (Expo flat config).
+
+**Issue 1:** `tsc` reported `TS2322` on the theme because `as const` produced incompatible
+light/dark literal types. Fixed by declaring an explicit `ThemeColors` interface and typing
+`palette: Record<ThemeName, ThemeColors>`.
+
+**Issue 2 (peer dependencies):** adding ESLint triggered a full `npm install` which failed
+with `ERESOLVE` — a transitive `react-dom@19.3.1` (pulled for Expo Router's web support)
+requires `react@^19.3.1`, but the SDK pins `react@19.3.0`. Fixed the ecosystem-standard way
+with a `client/.npmrc` setting `legacy-peer-deps=true`.
+
+**Issue 3 (lint rule):** `react-hooks/set-state-in-effect` flagged the home screen for
+calling `setState` synchronously inside `useEffect`. Fixed by setting state only inside the
+fetch callbacks and driving manual re-checks with a `refreshKey` counter.
+
+### 3.7 Client → server handshake
+
+The home screen calls `fetchHealth()` against `http://127.0.0.1:8000/health`. Verified
+independently:
+```text
+client->server handshake OK: {"status":"ok","service":"ipobazar-api"}
+```
+**Result:** ✅ Client and server communicate over HTTP/JSON (CORS configured on the server).
+
+### 3.8 Git repository
+
+- `git init` at the **root** (monorepo); the nested `client/.git` created by the scaffold was
+  removed.
+- `.gitignore` excludes `node_modules/`, `.venv/`, `__pycache__/`, and `.env` (secrets);
+  only `.env.example` is tracked.
+- Pushed to `origin` → `https://github.com/payalshinde906/IPOBazar.git`, branch `main`
+  (initial commit `22e6a77`, 52 files).
+
+**Outcome:** ✅ **Phase 3 complete.** Backend, database, frontend and handshake all verified;
+reusable UI components deliberately deferred to Phase 4. Stopped for review.

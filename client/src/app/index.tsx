@@ -23,25 +23,33 @@ export default function HomeScreen() {
   const theme = getTheme(scheme === 'dark');
   const styles = useMemo(() => createStyles(theme), [theme]);
 
-  const [status, setStatus] = useState<ConnectionStatus>('idle');
+  const [status, setStatus] = useState<ConnectionStatus>('loading');
   const [detail, setDetail] = useState<string>('');
-
-  const checkConnection = useCallback(async () => {
-    setStatus('loading');
-    setDetail('');
-    try {
-      const health = await fetchHealth();
-      setStatus('connected');
-      setDetail(`service: ${health.service}`);
-    } catch (error) {
-      setStatus('error');
-      setDetail(error instanceof Error ? error.message : 'Unknown error');
-    }
-  }, []);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    void checkConnection();
-  }, [checkConnection]);
+    let active = true;
+    fetchHealth()
+      .then((health) => {
+        if (!active) return;
+        setStatus('connected');
+        setDetail(`service: ${health.service}`);
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        setStatus('error');
+        setDetail(error instanceof Error ? error.message : 'Unknown error');
+      });
+    return () => {
+      active = false;
+    };
+  }, [refreshKey]);
+
+  const handleRecheck = useCallback(() => {
+    setStatus('loading');
+    setDetail('');
+    setRefreshKey((key) => key + 1);
+  }, []);
 
   const statusColor =
     status === 'connected'
@@ -80,7 +88,7 @@ export default function HomeScreen() {
           <Text style={styles.detail}>API: {API_BASE_URL}</Text>
 
           <Pressable
-            onPress={checkConnection}
+            onPress={handleRecheck}
             disabled={status === 'loading'}
             style={({ pressed }) => [
               styles.button,

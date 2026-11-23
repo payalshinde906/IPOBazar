@@ -110,6 +110,24 @@ Format: **ID · Title · Status · Date · Context · Decision · Consequences.*
 - **Consequences:** (+) Compliant and future-proof. (+) Clear separation of ingestion from
   business logic. (−) Some upfront interface design.
 
+## ADR-0010 — Namespace backend environment variables with `IPOBAZAR_`
+
+- **Status:** Accepted
+- **Date:** 2026-11-23
+- **Context:** During Phase 3 verification the backend test suite failed unexpectedly: this
+  machine had an **ambient** `DATABASE_URL` environment variable (pointing at a SQLite
+  file) set by another tool. Because real process environment variables take precedence
+  over the `.env` file in pydantic-settings, the app silently connected to the wrong
+  database and raised `ModuleNotFoundError: No module named 'aiosqlite'`. Generic names like
+  `DATABASE_URL` and `SECRET_KEY` are collision-prone.
+- **Decision:** Namespace **all** backend settings with the `IPOBAZAR_` prefix via
+  `SettingsConfigDict(env_prefix="IPOBAZAR_")`. Keys in `server/.env` and `.env.example` are
+  `IPOBAZAR_DATABASE_URL`, `IPOBAZAR_SECRET_KEY`, etc. The frontend keeps Expo's mandatory
+  `EXPO_PUBLIC_` convention for variables that must be inlined into the client bundle.
+- **Consequences:** (+) No collisions with ambient or third-party-tool variables; predictable
+  configuration. (+) Misconfiguration fails loudly instead of silently. (−) Slightly longer
+  variable names; documented in `setup_guide.md`.
+
 ---
 
 ### Superseded decisions
