@@ -1,0 +1,1 @@
+"""IPOBazar backend application package."""
