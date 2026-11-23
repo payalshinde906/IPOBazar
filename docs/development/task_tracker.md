@@ -30,12 +30,16 @@ Legend: ✅ done · 🔄 in progress · ⏳ pending · 🚫 blocked
 | P3-07 | Core documentation set | ✅ |
 | P3-08 | Remote `origin` configured + initial push (`main`) | ✅ |
 
-## Phase 4 — Frontend foundation (next)
+## Phase 4 — Design-system implementation  ✅ complete
 | ID | Task | Status |
 |----|------|--------|
-| P4-01 | Theme provider (light/dark) | ⏳ |
-| P4-02 | Reusable components (Button, Card, Input, Badge…) | ⏳ |
-| P4-03 | Loading / empty / error states | ⏳ |
+| P4-01 | Theme provider (light/dark) + wired into root layout | ✅ |
+| P4-02 | Reusable components: Button, Card, Input, Badge | ✅ |
+| P4-03 | Data-provenance badges (OFFICIAL / ESTIMATED / SAMPLE) | ✅ |
+| P4-04 | Loading / Empty / Error states | ✅ |
+| P4-05 | TS types, accessibility pass, barrel exports | ✅ |
+| P4-06 | Component tests (jest-expo + RNTL, 22 tests) | ✅ |
+| P4-07 | Verification: tsc + lint + tests + bundle | ✅ |
 
 ## Phase 5 — Backend foundation & database
 | ID | Task | Status |

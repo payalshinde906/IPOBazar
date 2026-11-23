@@ -1,27 +1,21 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  useColorScheme,
-  View,
-} from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { getTheme, radius, spacing, typography } from '../constants/theme';
+import { Button, Card, ErrorState, LoadingState, ProvenanceBadge } from '../components';
+import { spacing, typography } from '../constants/theme';
 import { API_BASE_URL, fetchHealth } from '../services/api';
+import { useTheme } from '../theme';
 
-type ConnectionStatus = 'idle' | 'loading' | 'connected' | 'error';
+type ConnectionStatus = 'loading' | 'connected' | 'error';
 
 /**
  * Home screen (S1). For Phase 3 it also acts as a live connectivity check
- * against the backend `/health` endpoint.
+ * against the backend `/health` endpoint, now rendered with the Phase 4
+ * design-system components.
  */
 export default function HomeScreen() {
-  const scheme = useColorScheme();
-  const theme = getTheme(scheme === 'dark');
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const { colors } = useTheme();
 
   const [status, setStatus] = useState<ConnectionStatus>('loading');
   const [detail, setDetail] = useState<string>('');
@@ -51,58 +45,39 @@ export default function HomeScreen() {
     setRefreshKey((key) => key + 1);
   }, []);
 
-  const statusColor =
-    status === 'connected'
-      ? theme.success
-      : status === 'error'
-        ? theme.danger
-        : theme.textMuted;
-
-  const statusLabel =
-    status === 'connected'
-      ? 'Backend: connected'
-      : status === 'error'
-        ? 'Backend: unreachable'
-        : status === 'loading'
-          ? 'Checking backend…'
-          : 'Not checked';
-
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
       <View style={styles.container}>
         <View>
-          <Text style={styles.brand}>IPOBazar</Text>
-          <Text style={styles.tagline}>Indian IPO tracking & investment companion</Text>
+          <Text style={[styles.brand, { color: colors.textPrimary }]}>IPOBazar</Text>
+          <Text style={[styles.tagline, { color: colors.textSecondary }]}>
+            Indian IPO tracking & investment companion
+          </Text>
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>System status</Text>
+        <Card>
+          <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>System status</Text>
 
-          <View style={styles.row}>
-            <View style={[styles.dot, { backgroundColor: statusColor }]} />
-            <Text style={[styles.statusText, { color: statusColor }]}>{statusLabel}</Text>
-            {status === 'loading' ? <ActivityIndicator size="small" color={theme.primary} /> : null}
-          </View>
+          {status === 'loading' ? <LoadingState message="Checking backend…" /> : null}
 
-          {detail ? <Text style={styles.detail}>{detail}</Text> : null}
-          <Text style={styles.detail}>API: {API_BASE_URL}</Text>
+          {status === 'error' ? (
+            <ErrorState title="Backend unreachable" message={detail} onRetry={handleRecheck} />
+          ) : null}
 
-          <Pressable
-            onPress={handleRecheck}
-            disabled={status === 'loading'}
-            style={({ pressed }) => [
-              styles.button,
-              { backgroundColor: pressed ? theme.primaryPressed : theme.primary },
-              status === 'loading' && styles.buttonDisabled,
-            ]}
-          >
-            <Text style={styles.buttonLabel}>Re-check connection</Text>
-          </Pressable>
-        </View>
+          {status === 'connected' ? (
+            <View style={styles.connected}>
+              <Text style={[styles.statusText, { color: colors.success }]}>Backend: connected</Text>
+              <Text style={[styles.detail, { color: colors.textSecondary }]}>{detail}</Text>
+              <Text style={[styles.detail, { color: colors.textSecondary }]}>API: {API_BASE_URL}</Text>
+              <Button label="Re-check connection" onPress={handleRecheck} variant="secondary" size="sm" />
+            </View>
+          ) : null}
+        </Card>
 
-        <View style={styles.sampleBanner}>
-          <Text style={styles.sampleText}>
-            SAMPLE DATA — features are built phase by phase. No live IPO data is shown yet.
+        <View style={[styles.sampleBanner, { backgroundColor: colors.surfaceAlt }]}>
+          <ProvenanceBadge provenance="sample" />
+          <Text style={[styles.sampleText, { color: colors.textSecondary }]}>
+            Features are built phase by phase. No live IPO data is shown yet.
           </Text>
         </View>
       </View>
@@ -110,73 +85,39 @@ export default function HomeScreen() {
   );
 }
 
-function createStyles(theme: ReturnType<typeof getTheme>) {
-  return StyleSheet.create({
-    safeArea: { flex: 1, backgroundColor: theme.background },
-    container: {
-      flex: 1,
-      padding: spacing.md,
-      justifyContent: 'space-between',
-    },
-    brand: {
-      ...typography.h1,
-      color: theme.textPrimary,
-    },
-    tagline: {
-      ...typography.bodySm,
-      color: theme.textSecondary,
-      marginTop: spacing.xxs,
-    },
-    card: {
-      backgroundColor: theme.surface,
-      borderRadius: radius.lg,
-      borderWidth: 1,
-      borderColor: theme.border,
-      padding: spacing.md,
-      gap: spacing.sm,
-    },
-    cardTitle: {
-      ...typography.h3,
-      color: theme.textPrimary,
-    },
-    row: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.xs,
-    },
-    dot: {
-      width: 10,
-      height: 10,
-      borderRadius: radius.pill,
-    },
-    statusText: {
-      ...typography.bodyStrong,
-      flex: 1,
-    },
-    detail: {
-      ...typography.bodySm,
-      color: theme.textSecondary,
-    },
-    button: {
-      marginTop: spacing.xs,
-      borderRadius: radius.md,
-      paddingVertical: spacing.sm,
-      alignItems: 'center',
-    },
-    buttonDisabled: { opacity: 0.6 },
-    buttonLabel: {
-      ...typography.bodyStrong,
-      color: '#FFFFFF',
-    },
-    sampleBanner: {
-      backgroundColor: theme.surfaceAlt,
-      borderRadius: radius.md,
-      padding: spacing.sm,
-    },
-    sampleText: {
-      ...typography.caption,
-      color: theme.textSecondary,
-      textAlign: 'center',
-    },
-  });
-}
+const styles = StyleSheet.create({
+  safeArea: { flex: 1 },
+  container: {
+    flex: 1,
+    padding: spacing.md,
+    justifyContent: 'space-between',
+  },
+  brand: {
+    ...typography.h1,
+  },
+  tagline: {
+    ...typography.bodySm,
+    marginTop: spacing.xxs,
+  },
+  cardTitle: {
+    ...typography.h3,
+    marginBottom: spacing.sm,
+  },
+  connected: { gap: spacing.xs },
+  statusText: {
+    ...typography.bodyStrong,
+  },
+  detail: {
+    ...typography.bodySm,
+  },
+  sampleBanner: {
+    alignItems: 'center',
+    borderRadius: 10,
+    padding: spacing.sm,
+    gap: spacing.xxs,
+  },
+  sampleText: {
+    ...typography.caption,
+    textAlign: 'center',
+  },
+});

@@ -182,3 +182,87 @@ client->server handshake OK: {"status":"ok","service":"ipobazar-api"}
 
 **Outcome:** ✅ **Phase 3 complete.** Backend, database, frontend and handshake all verified;
 reusable UI components deliberately deferred to Phase 4. Stopped for review.
+
+---
+
+## 2026-11-23 — Phase 4: Design-system implementation
+
+**Goal:** Turn the approved design tokens into an app-wide theme and a reusable,
+accessible component set — no IPO business features, no backend changes.
+
+**Reference:** `docs/product/design_system.md` (authoritative tokens + §7 provenance,
+§9 component inventory, §10 states, §12 accessibility).
+
+### 4.1 Inspection
+
+- Read `client/AGENTS.md` (Expo SDK guidance), `docs/product/design_system.md`,
+  `client/src/constants/theme.ts` (existing tokens), `src/app/_layout.tsx` and
+  `src/services/api.ts`.
+- Confirmed no `babel.config.js` / `metro.config.js` / `jest.config.js` existed yet.
+
+**Files created (theme)**
+- `src/theme/ThemeProvider.tsx` — React Context provider with `mode` (`system`/`light`/`dark`),
+  resolved `theme` name, `isDark`, `colors` (from existing tokens) and `setMode`/`toggle`;
+  falls back to the OS scheme via `useColorScheme()` when `mode === 'system'`.
+- `src/theme/index.ts` — barrel export.
+- `src/utils/color.ts` — `withAlpha()` helper to derive tinted badge fills from token hexes
+  (no new hard-coded colours).
+- Wired `ThemeProvider` into `src/app/_layout.tsx`; `StatusBar` style and `Stack`
+  background now follow the active theme.
+
+### 4.2 Reusable components (`src/components/`)
+
+- `Button.tsx` — variants `primary` / `secondary` / `ghost`; sizes `sm`/`md`/`lg`
+  (min-height ≥ 44); `loading` / `disabled` / `fullWidth`; `accessibilityRole="button"`,
+  `accessibilityState`.
+- `Card.tsx` — themed surface container (radius, hairline border, subtle elevation).
+- `Input.tsx` — labelled `TextInput` with focus / helper / error states; border colour
+  reflects state; label used as the accessible name.
+- `Badge.tsx` — tones `neutral|accent|success|warning|danger|info`, variants
+  `soft|solid|outline`, optional dashed border.
+- `ProvenanceBadge.tsx` — the mandatory **OFFICIAL / ESTIMATED / SAMPLE DATA** classifier;
+  OFFICIAL optionally shows an "Updated …" timestamp; source exposed to assistive tech.
+
+### 4.3 States + exports (`src/components/`)
+
+- `LoadingState.tsx` — spinner + message (`accessibilityRole="progressbar"`, `accessible`).
+- `EmptyState.tsx` — title / message / optional call-to-action.
+- `ErrorState.tsx` — danger title (`accessibilityRole="alert"`) + optional retry.
+- `index.ts` — public barrel for all components.
+- Home screen (`src/app/index.tsx`) now consumes `useTheme()` + `Card` / `Button` /
+  `LoadingState` / `ErrorState` / `ProvenanceBadge` (keeps the Phase 3 health check).
+
+### 4.4 Tests
+
+- Added `jest.config.js` (preset `jest-expo`) and scripts `test` / `typecheck`.
+- `src/test-utils/index.tsx` — `render()` that wraps UI in `ThemeProvider`
+  (explicit re-exports to avoid clobbering the library `render`).
+- 7 suites / **22 tests** covering Button, Card, Input, Badge, ProvenanceBadge,
+  Loading/Empty/Error states and ThemeProvider (`__tests__` folders).
+
+**Issue 1 (async API):** `@testing-library/react-native` **v14** made `render` and
+`fireEvent.*` **async**. Initial synchronous destructuring of the render result failed
+(`getByText is not a function`). Fixed by `await`-ing `render` and every `fireEvent`.
+
+**Issue 2 (role queries):** `getByRole` only matches elements that are accessibility
+elements. Added `accessible` to `Badge` / `LoadingState` containers and moved
+`accessibilityRole="alert"` onto the title `Text` in `ErrorState`.
+
+**Issue 3 (TS globals):** `tsc` could not see Jest globals despite `@types/jest` being
+installed; added `"types": ["jest", "node"]` to `tsconfig.json`.
+
+**Issue 4 (jest-expo peer):** `jest-expo` now requires `@react-native/jest-preset`;
+installed it as a dev dependency.
+
+### 4.5 Verification
+
+| Check | Command | Result |
+|-------|---------|--------|
+| TypeScript | `npx tsc --noEmit` | ✅ exit 0 |
+| Lint | `npx expo lint` | ✅ 0 problems |
+| Tests | `npx jest --ci` | ✅ **7 suites / 22 tests passed** |
+| Bundle | Metro `.expo/.virtual-metro-entry.bundle` (android) | ✅ HTTP **200**, ≈ 5.48 MB |
+
+**Outcome:** ✅ **Phase 4 complete.** App-wide light/dark theming and the reusable
+component set (incl. provenance badges and the three data states) are implemented,
+typed, accessible and tested. Stopped for review — Phase 5 not started.
