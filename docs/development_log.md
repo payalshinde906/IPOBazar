@@ -266,3 +266,47 @@ installed it as a dev dependency.
 **Outcome:** ✅ **Phase 4 complete.** App-wide light/dark theming and the reusable
 component set (incl. provenance badges and the three data states) are implemented,
 typed, accessible and tested. Stopped for review — Phase 5 not started.
+
+---
+
+## 2026-11-24 — Phase 4 visual review: backend connectivity incident
+
+**Trigger:** during the Phase 4 visual review in Chrome (`localhost:8081`) the home
+screen rendered correctly but "System status" showed **"Backend unreachable —
+Failed to fetch"**. Investigated before closing Phase 4.
+
+**Investigation (no code changed)**
+
+| Check | Command / source | Result |
+|-------|------------------|--------|
+| Client base URL | `src/services/api.ts` | `EXPO_PUBLIC_API_BASE_URL ?? 'http://127.0.0.1:8000'` |
+| Loaded env value | `client/.env` | `EXPO_PUBLIC_API_BASE_URL=http://127.0.0.1:8000` ✅ matches backend |
+| Listener on `:8000` | `Get-NetTCPConnection -State Listen -LocalPort 8000` | **no row** (nothing listening) |
+| Listener on `:8081` | same command | `:: 8081` (Expo dev server — working) |
+| Backend health (before) | `Invoke-WebRequest http://127.0.0.1:8000/health` | **FAILED — Unable to connect** |
+| CORS | `server/.env` → `IPOBAZAR_CORS_ORIGINS=*` + live request with `Origin: http://localhost:8081` | `Access-Control-Allow-Origin: http://localhost:8081` ✅ allowed |
+| Docker | — | Not applicable (ADR-0005, native PostgreSQL) |
+
+**Root cause:** the FastAPI backend was **not running**. The browser `fetch()` to
+`127.0.0.1:8000` was refused at the TCP layer, so JavaScript surfaced it as
+`TypeError: Failed to fetch` (not an HTTP status). CORS, the API base URL and the
+route prefix were all correct — no code or config defect. The Phase 4 `ErrorState`
+with its "Try Again" button behaved exactly as designed.
+
+**Resolution (operational, no file edits)**
+```powershell
+# from server/ using the existing virtual environment
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+**Verification after starting the backend**
+
+| Endpoint | Result |
+|----------|--------|
+| `GET /health` | ✅ `200 {"status":"ok","service":"ipobazar-api"}` |
+| `GET /api/v1/health` | ✅ `200 {"status":"ok","service":"ipobazar-api"}` |
+| `GET /api/v1/health/db` | ✅ `200 {"status":"ok","database":"connected"}` |
+| CORS preflight (`Origin: http://localhost:8081`) | ✅ `Access-Control-Allow-Origin: http://localhost:8081` |
+
+**Files requiring changes:** none. **Outcome:** ✅ incident resolved — operational
+(a backend process was simply not started), not a code/design-model defect.
